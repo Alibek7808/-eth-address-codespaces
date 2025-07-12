@@ -1,5 +1,5 @@
 {
-  "name": "C + Ethereum",
+  "name": "Ethereum C Dev (x86_64)",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "postCreateCommand": "apt update && apt install -y autoconf automake libtool pkg-config build-essential libssl-dev git && bash build.sh"
+  "postCreateCommand": "apt update && apt install -y git build-essential autoconf automake libtool pkg-config libssl-dev && bash build.sh"
 }
