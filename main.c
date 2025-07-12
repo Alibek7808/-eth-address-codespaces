@@ -6,7 +6,8 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
-#define MAX_ACTIVE_ADDRS 2000000  // подстроить при необходимости
+#define MAX_ACTIVE_ADDRS 2000000
+
 char **active_addrs = NULL;
 size_t active_count = 0;
 
@@ -18,6 +19,11 @@ void load_active_addresses(const char *filename) {
     }
 
     active_addrs = malloc(MAX_ACTIVE_ADDRS * sizeof(char *));
+    if (!active_addrs) {
+        fprintf(stderr, "❌ Ошибка выделения памяти\n");
+        exit(1);
+    }
+
     char line[128];
     while (fgets(line, sizeof(line), f)) {
         size_t len = strlen(line);
@@ -69,9 +75,14 @@ void process_privkey(const char *priv_hex, secp256k1_context *ctx, FILE *out_all
         }
     }
 
+    if (!secp256k1_ec_seckey_verify(ctx, priv)) {
+        fprintf(stderr, "❌ Невалидный приватный ключ: %s\n", priv_hex);
+        return;
+    }
+
     secp256k1_pubkey pubkey;
     if (!secp256k1_ec_pubkey_create(ctx, &pubkey, priv)) {
-        fprintf(stderr, "❌ Не удалось создать pubkey для: %s\n", priv_hex);
+        fprintf(stderr, "❌ Ошибка генерации pubkey для: %s\n", priv_hex);
         return;
     }
 
@@ -83,7 +94,7 @@ void process_privkey(const char *priv_hex, secp256k1_context *ctx, FILE *out_all
     keccak256(pubkey_ser + 1, 64, hash);
 
     char eth_addr[41];
-    hex_from_bytes(&hash[12], 20, eth_addr);
+    hex_from_bytes(&hash[12], 20, eth_addr);  // 20 байт = адрес
 
     fprintf(out_all, "%s\n%s\n", priv_hex, eth_addr);
 
@@ -105,7 +116,7 @@ int main() {
     FILE *out_all = fopen("output.txt", "w");
     FILE *out_found = fopen("found.txt", "w");
     if (!out_all || !out_found) {
-        perror("❌ Не удалось открыть output.txt или found.txt");
+        perror("❌ Не удалось создать выходные файлы");
         return 1;
     }
 
@@ -118,7 +129,11 @@ int main() {
             line[--len] = '\0';
         if (len == 0) continue;
 
-        process_privkey(line, ctx, out_all, out_found);
+        char clean_key[65];
+        strncpy(clean_key, line, 64);
+        clean_key[64] = '\0';
+
+        process_privkey(clean_key, ctx, out_all, out_found);
     }
 
     secp256k1_context_destroy(ctx);
@@ -126,6 +141,6 @@ int main() {
     fclose(out_all);
     fclose(out_found);
 
-    printf("✅ Завершено. Результаты: output.txt, найденные: found.txt\n");
+    printf("✅ Готово! Результаты в output.txt, найденные в found.txt\n");
     return 0;
 }
