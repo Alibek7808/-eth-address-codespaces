@@ -1,9 +1,45 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <secp256k1.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
+
+#define MAX_ACTIVE_ADDRS 2000000  // подстроить при необходимости
+char **active_addrs = NULL;
+size_t active_count = 0;
+
+void load_active_addresses(const char *filename) {
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        perror("❌ Не удалось открыть active_eth.txt");
+        exit(1);
+    }
+
+    active_addrs = malloc(MAX_ACTIVE_ADDRS * sizeof(char *));
+    char line[128];
+    while (fgets(line, sizeof(line), f)) {
+        size_t len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+            line[--len] = '\0';
+        if (len == 0) continue;
+        active_addrs[active_count] = strdup(line);
+        active_count++;
+        if (active_count >= MAX_ACTIVE_ADDRS) break;
+    }
+
+    fclose(f);
+    printf("📂 Загружено %zu активных адресов\n", active_count);
+}
+
+int is_active_address(const char *addr) {
+    for (size_t i = 0; i < active_count; i++) {
+        if (strcasecmp(addr, active_addrs[i]) == 0)
+            return 1;
+    }
+    return 0;
+}
 
 void keccak256(const uint8_t *data, size_t len, uint8_t *hash_out) {
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
@@ -13,17 +49,30 @@ void keccak256(const uint8_t *data, size_t len, uint8_t *hash_out) {
     EVP_MD_CTX_free(ctx);
 }
 
-int main() {
-    const char *priv_hex = "f8544583fd385afa336bd2a47c0aebb759077690803ad28ca277c83056c5e72c";
-    uint8_t priv[32];
-    for (int i = 0; i < 32; i++)
-        sscanf(&priv_hex[i * 2], "%2hhx", &priv[i]);
+void hex_from_bytes(const uint8_t *bytes, size_t len, char *out_hex) {
+    for (size_t i = 0; i < len; i++)
+        sprintf(&out_hex[i * 2], "%02x", bytes[i]);
+    out_hex[len * 2] = '\0';
+}
 
-    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+void process_privkey(const char *priv_hex, secp256k1_context *ctx, FILE *out_all, FILE *out_found) {
+    if (strlen(priv_hex) != 64) {
+        fprintf(stderr, "⛔ Неверная длина ключа: %s\n", priv_hex);
+        return;
+    }
+
+    uint8_t priv[32];
+    for (int i = 0; i < 32; i++) {
+        if (sscanf(&priv_hex[i * 2], "%2hhx", &priv[i]) != 1) {
+            fprintf(stderr, "⛔ Ошибка парсинга: %s\n", priv_hex);
+            return;
+        }
+    }
+
     secp256k1_pubkey pubkey;
     if (!secp256k1_ec_pubkey_create(ctx, &pubkey, priv)) {
-        printf("❌ Ошибка генерации pubkey\n");
-        return 1;
+        fprintf(stderr, "❌ Не удалось создать pubkey для: %s\n", priv_hex);
+        return;
     }
 
     uint8_t pubkey_ser[65];
@@ -31,13 +80,52 @@ int main() {
     secp256k1_ec_pubkey_serialize(ctx, pubkey_ser, &len, &pubkey, SECP256K1_EC_UNCOMPRESSED);
 
     uint8_t hash[32];
-    keccak256(pubkey_ser + 1, 64, hash);  // исключаем первый байт 0x04
+    keccak256(pubkey_ser + 1, 64, hash);
 
-    printf("✅ Ethereum address: 0x");
-    for (int i = 12; i < 32; i++)
-        printf("%02x", hash[i]);
-    printf("\n");
+    char eth_addr[41];
+    hex_from_bytes(&hash[12], 20, eth_addr);
+
+    fprintf(out_all, "%s\n%s\n", priv_hex, eth_addr);
+
+    if (is_active_address(eth_addr)) {
+        fprintf(out_found, "%s\n%s\n", priv_hex, eth_addr);
+        printf("🎯 Найден активный: %s\n", eth_addr);
+    }
+}
+
+int main() {
+    load_active_addresses("active_eth.txt");
+
+    FILE *file = fopen("keys.txt", "r");
+    if (!file) {
+        perror("❌ Не удалось открыть keys.txt");
+        return 1;
+    }
+
+    FILE *out_all = fopen("output.txt", "w");
+    FILE *out_found = fopen("found.txt", "w");
+    if (!out_all || !out_found) {
+        perror("❌ Не удалось открыть output.txt или found.txt");
+        return 1;
+    }
+
+    char line[128];
+    secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN);
+
+    while (fgets(line, sizeof(line), file)) {
+        size_t len = strlen(line);
+        while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+            line[--len] = '\0';
+        if (len == 0) continue;
+
+        process_privkey(line, ctx, out_all, out_found);
+    }
 
     secp256k1_context_destroy(ctx);
+    fclose(file);
+    fclose(out_all);
+    fclose(out_found);
+
+    printf("✅ Завершено. Результаты: output.txt, найденные: found.txt\n");
     return 0;
 }
