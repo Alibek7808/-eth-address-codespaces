@@ -1,5 +1,5 @@
 {
-  "name": "ETH-from-seed C",
+  "name": "Ethereum C Dev (x86_64)",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
@@ -8,7 +8,8 @@
     "ghcr.io/devcontainers/features/libtool:1": {},
     "ghcr.io/devcontainers/features/make:1": {},
     "ghcr.io/devcontainers/features/pkg-config:1": {},
-    "ghcr.io/devcontainers/features/openssl:1": {}
+    "ghcr.io/devcontainers/features/openssl:1": {},
+    "ghcr.io/devcontainers/features/gcc:1": {}
   },
-  "postCreateCommand": "bash build.sh"
+  "postCreateCommand": "chmod +x build.sh && bash build.sh"
 }
