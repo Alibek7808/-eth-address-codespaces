@@ -1,1 +1,16 @@
+{
+  "name": "Ethereum C Dev",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/gcc:1": {},
+    "ghcr.io/devcontainers/features/openssl:1": {},
+    "ghcr.io/devcontainers/features/pkg-config:1": {},
+    "ghcr.io/devcontainers/features/autoconf:1": {},
+    "ghcr.io/devcontainers/features/automake:1": {},
+    "ghcr.io/devcontainers/features/libtool:1": {},
+    "ghcr.io/devcontainers/features/make:1": {}
+  },
+  "postCreateCommand": "bash build.sh"
+}
 
