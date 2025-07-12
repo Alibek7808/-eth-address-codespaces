@@ -1,16 +1,5 @@
 {
-  "name": "Ethereum C Dev",
+  "name": "C + Ethereum",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/gcc:1": {},
-    "ghcr.io/devcontainers/features/openssl:1": {},
-    "ghcr.io/devcontainers/features/pkg-config:1": {},
-    "ghcr.io/devcontainers/features/autoconf:1": {},
-    "ghcr.io/devcontainers/features/automake:1": {},
-    "ghcr.io/devcontainers/features/libtool:1": {},
-    "ghcr.io/devcontainers/features/make:1": {}
-  },
-  "postCreateCommand": "bash build.sh"
+  "postCreateCommand": "apt update && apt install -y autoconf automake libtool pkg-config build-essential libssl-dev git && bash build.sh"
 }
-
