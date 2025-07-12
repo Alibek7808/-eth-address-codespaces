@@ -1,5 +1,5 @@
 {
-  "name": "Ethereum C Dev (x86_64)",
+  "name": "Ethereum C Dev",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
